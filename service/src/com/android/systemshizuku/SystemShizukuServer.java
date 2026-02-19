@@ -47,8 +47,8 @@ public class SystemShizukuServer {
 
     private static final String TAG = "SystemShizuku";
 
-    public static final String SERVICE_NAME = "system_shizuku";
-    public static final String MGR_SERVICE_NAME = "system_shizuku_mgr";
+    public static final String SERVICE_NAME = "shizuku";
+    public static final String MGR_SERVICE_NAME = "shizuku_mgr";
 
     public static void main(String[] args) {
         Log.i(TAG, "Starting system_shizuku service");

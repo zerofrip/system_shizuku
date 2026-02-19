@@ -50,7 +50,7 @@ import java.util.List;
 public class SystemShizukuController {
 
     private static final String TAG = "SystemShizukuCtrl";
-    private static final String MGR_SERVICE = "system_shizuku_mgr";
+    private static final String MGR_SERVICE = "shizuku_mgr";
 
     private final Context mContext;
     private ISystemShizukuManager mManager;

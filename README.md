@@ -44,7 +44,7 @@ system_shizuku/
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  App Process                                                 │
-│  ServiceManager.getService("system_shizuku")                 │
+│  ServiceManager.getService("shizuku")                        │
 │  → ISystemShizukuService (public)                            │
 │    requestPermission()  getMyPermission()  attachSession()   │
 └───────────────────────────────┬──────────────────────────────┘
@@ -56,7 +56,7 @@ system_shizuku/
 │  SystemShizukuServiceImpl  ──call──▶  PermissionConsentActivity│
 │  SystemShizukuManagerImpl                                    │
 │                                                              │
-│  ServiceManager.getService("system_shizuku_mgr")             │
+│  ServiceManager.getService("shizuku_mgr")                    │
 └───────────────────────────────┬──────────────────────────────┘
                                 │ Binder IPC
                                 ▼
@@ -73,8 +73,8 @@ system_shizuku/
 
 | Interface | Registered name | Callers | Capabilities |
 |---|---|---|---|
-| `ISystemShizukuService` | `system_shizuku` | Any installed app | Request permission, self-query, session attach |
-| `ISystemShizukuManager` | `system_shizuku_mgr` | `MANAGE_SYSTEM_SHIZUKU` holders only | List, query, revoke, audit log |
+| `ISystemShizukuService` | `shizuku` | Any installed app | Request permission, self-query, session attach |
+| `ISystemShizukuManager` | `shizuku_mgr` | `MANAGE_SYSTEM_SHIZUKU` holders only | List, query, revoke, audit log |
 
 **Key design decisions:**
 

@@ -6,25 +6,25 @@
 # The service is launched as a Java priv-app via app_process so it can
 # bind to ServiceManager without native code.  It registers two Binder
 # services:
-#   "system_shizuku"     — public app interface (ISystemShizukuService)
-#   "system_shizuku_mgr" — management interface  (ISystemShizukuManager)
+#   "shizuku"     — public app interface (ISystemShizukuService)
+#   "shizuku_mgr" — management interface  (ISystemShizukuManager)
 
 on boot
     # Start the service only after the service manager and package manager are
     # ready.  "post-fs-data" is too early; services that depend on installed
     # APK state must wait until "boot".
-    start system_shizuku
+    start shizuku
 
-service system_shizuku /system/bin/app_process \
+service shizuku /system/bin/app_process \
         /system/priv-app/SystemShizuku \
         com.android.systemshizuku.SystemShizukuServer \
-        --nice-name=system_shizuku
+        --nice-name=shizuku
     class main
     user system
     group system readproc
     # Critical: if the process crashes, restart it automatically.
     # Do NOT set "oneshot".
-    onrestart restart system_shizuku
+    onrestart restart shizuku
     # Limit restart backoff to avoid boot loops.
     restart_period 5s
     # SELinux domain (see sepolicy/system_shizuku.te).
@@ -36,5 +36,5 @@ service system_shizuku /system/bin/app_process \
 
 # Expose the two Binder service names to other processes.
 # The SELinux service_contexts file must also contain these entries.
-#   system_shizuku       u:object_r:system_shizuku_service:s0
-#   system_shizuku_mgr   u:object_r:system_shizuku_mgr_service:s0
+#   shizuku       u:object_r:system_shizuku_service:s0
+#   shizuku_mgr   u:object_r:system_shizuku_mgr_service:s0
