@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (C) 2026 The system_shizuku Project
+
+  Privileged-permission whitelist for the SystemShizuku service APK itself
+  and for the Settings app.
+
+  On Android 8.0+ placing an APK in /system/priv-app is NOT sufficient to
+  grant it privileged permissions.  Each permission must be explicitly
+  whitelisted here.
+
+  This file is installed to /system/etc/permissions/ via Android.bp
+  (see prebuilt_etc "privapp-permissions-systemshizuku.xml").
+
+  If Settings is on a different partition (e.g. /product) you may need a
+  matching file in /product/etc/permissions/ as well.
+-->
+<permissions>
+
+    <!-- Whitelist for the SystemShizuku service itself -->
+    <privapp-permissions package="com.android.systemshizuku">
+        <!--
+          The service declares this in its own manifest so it can self-verify
+          callers on IPC.  It must hold the permission to enforce it.
+        -->
+        <permission name="android.permission.MANAGE_SYSTEM_SHIZUKU" />
+
+        <!-- Required to show the system-level permission dialog (TYPE_SYSTEM_ALERT) -->
+        <permission name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+        <!-- Required to query package info for arbitrary UIDs -->
+        <permission name="android.permission.QUERY_ALL_PACKAGES" />
+
+        <!-- Required to interact with multi-user APIs -->
+        <permission name="android.permission.INTERACT_ACROSS_USERS" />
+        <permission name="android.permission.MANAGE_USERS" />
+    </privapp-permissions>
+
+    <!-- Whitelist for the Settings app to call ISystemShizukuManager -->
+    <privapp-permissions package="com.android.settings">
+        <permission name="android.permission.MANAGE_SYSTEM_SHIZUKU" />
+    </privapp-permissions>
+
+</permissions>

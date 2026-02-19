@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (C) 2026 The system_shizuku Project
+
+  Declares the MANAGE_SYSTEM_SHIZUKU permission for the platform.
+
+  This file should be installed to /system/etc/permissions/ via Android.bp
+  (see prebuilt_etc "com.android.systemshizuku.xml").
+
+  Alternatively, if your ROM build requires the permission to exist before
+  this APK is compiled (e.g. Settings depends on it at compile time), add
+  the <permission> declaration directly to:
+    frameworks/base/core/res/AndroidManifest.xml
+  and remove this file.
+-->
+<permissions>
+
+    <!--
+      Grants callers the ability to call ISystemShizukuManager APIs:
+        - list granted packages
+        - query individual grant records
+        - revoke permissions
+        - read the audit log
+
+      Protection level: signatureOrSystem (signature|privileged).
+      This means only apps signed with the platform certificate OR apps
+      pre-installed as privileged apps in /system/priv-app (with an
+      explicit whitelist entry) can hold this permission.
+
+      Third-party apps CANNOT hold this permission.
+    -->
+    <permission
+        android:name="android.permission.MANAGE_SYSTEM_SHIZUKU"
+        android:protectionLevel="signature|privileged" />
+
+</permissions>

@@ -1,0 +1,18 @@
+# file_contexts — SELinux labels for system_shizuku file paths
+#
+# Copy these lines into your device's file_contexts file, for example:
+#   device/<vendor>/<device>/sepolicy/file_contexts
+# or:
+#   system/sepolicy/private/file_contexts
+#
+# Format: <path_regex>  <file_type>  <label>
+
+# Service APK installed as a priv-app
+/system/priv-app/SystemShizuku(/.*)?           u:object_r:system_file:s0
+
+# Service executable entry point (app_process is already labelled;
+# we label the wrapper script or .dex if a separate exec is used)
+/system/bin/system_shizuku                     u:object_r:system_shizuku_exec:s0
+
+# Persistent data directory: /data/system/system_shizuku/
+/data/system/system_shizuku(/.*)?              u:object_r:system_shizuku_data_file:s0

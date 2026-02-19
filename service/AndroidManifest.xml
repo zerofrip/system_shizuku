@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (C) 2026 The system_shizuku Project
+  Service-side AndroidManifest.xml
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.android.systemshizuku"
+    android:versionCode="1"
+    android:versionName="1.0"
+    android:sharedUserId="android.uid.system">
+
+    <!-- ===================================================================
+         Required permissions
+         =================================================================== -->
+
+    <!-- Self-declares the management permission so the service can check it -->
+    <uses-permission android:name="android.permission.MANAGE_SYSTEM_SHIZUKU" />
+
+    <!-- Show the system-level permission consent dialog -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Inspect packages for UID→package resolution -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Multi-user support -->
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
+    <uses-permission android:name="android.permission.MANAGE_USERS" />
+
+    <!-- Receive boot-completed broadcast to persist state on device startup -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- ===================================================================
+         Application component
+         =================================================================== -->
+    <application
+        android:label="@string/app_name"
+        android:persistent="true"
+        android:directBootAware="true"
+        android:allowBackup="false">
+
+        <!--
+          Main service component.
+
+          android:process=":system_shizuku" keeps it in a named process.
+          The init.rc uses app_process to launch SystemShizukuServer directly,
+          so this <service> entry is mainly for the manifest scanner / SELinux.
+
+          exported="false" — no external component should bind this service
+          via Intent.  Access is via ServiceManager.getService() only.
+        -->
+        <service
+            android:name=".SystemShizukuService"
+            android:exported="false"
+            android:singleUser="false"
+            android:process=":system_shizuku"
+            android:directBootAware="true" />
+
+        <!--
+          Consent dialog activity.
+
+          Shown by the service when an app calls requestPermission and no
+          prior grant exists.  Must be TYPE_SYSTEM_ALERT so it appears above
+          all other windows.
+
+          theme="@style/Theme.SystemShizuku.Dialog" should be a translucent
+          dialog theme defined in res/values/styles.xml.
+        -->
+        <activity
+            android:name=".ui.PermissionConsentActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SystemShizuku.Dialog"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:noHistory="true" />
+
+        <!-- Receiver for BOOT_COMPLETED to re-validate session tokens -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  String resources for the system_shizuku service.
+  Place in: service/res/values/strings.xml
+-->
+<resources>
+    <string name="app_name">System Shizuku</string>
+
+    <!-- PermissionConsentActivity -->
+    <string name="consent_icon_desc">App icon</string>
+    <string name="consent_description">This app is requesting elevated system access via System Shizuku. Only allow if you trust this application.</string>
+    <string name="consent_allow">Allow</string>
+    <string name="consent_deny">Deny</string>
+
+    <!-- Settings fragments (referenced from com.android.settings) -->
+    <string name="system_shizuku_title">System Shizuku</string>
+    <string name="system_shizuku_summary">Manage apps with elevated system access</string>
+    <string name="system_shizuku_granted_header">Allowed</string>
+    <string name="system_shizuku_denied_header">Denied</string>
+    <string name="system_shizuku_revoked">Revoked</string>
+    <string name="system_shizuku_status_granted">Access granted</string>
+    <string name="system_shizuku_status_not_granted">Access not granted</string>
+    <string name="system_shizuku_granted_at">Granted on %1$s</string>
+    <string name="system_shizuku_revoked_success">Permission revoked</string>
+    <string name="system_shizuku_revoke_failed">Could not revoke permission — service unavailable</string>
+</resources>

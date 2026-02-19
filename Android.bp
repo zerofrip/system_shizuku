@@ -1,0 +1,104 @@
+// Copyright (C) 2026 The system_shizuku Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+
+// ============================================================================
+// AIDL stubs library — used by the service and by Settings/test apps
+// ============================================================================
+java_library {
+    name: "system_shizuku_aidl",
+    srcs: [
+        "aidl/**/*.aidl",
+    ],
+    aidl: {
+        include_dirs: [
+            "aidl",
+        ],
+    },
+    // Stubs are available to priv-apps and system apps on the same partition.
+    sdk_version: "system_current",
+    // Expose to Settings and other priv-apps that need to bind to the manager
+    // interface.  Third-party apps should only depend on the narrower public
+    // stubs (see system_shizuku_aidl_public below).
+    visibility: [
+        "//packages/apps/Settings",
+        "//packages/apps/SystemShizuku:__subpackages__",
+    ],
+}
+
+// Narrow public stubs — only ISystemShizukuService + its parcelables.
+// Third-party apps that want to call requestPermission should depend on this.
+java_library {
+    name: "system_shizuku_aidl_public",
+    srcs: [
+        "aidl/com/android/systemshizuku/ShizukuPermission.aidl",
+        "aidl/com/android/systemshizuku/ISystemShizukuCallback.aidl",
+        "aidl/com/android/systemshizuku/ISystemShizukuService.aidl",
+    ],
+    aidl: {
+        include_dirs: [
+            "aidl",
+        ],
+    },
+    sdk_version: "current",
+    visibility: ["//visibility:public"],
+}
+
+// ============================================================================
+// Service APK — installed as a priv-app
+// ============================================================================
+android_app {
+    name: "SystemShizuku",
+    srcs: [
+        "service/src/**/*.java",
+        "service/src/**/*.kt",
+    ],
+    // Include both stub libraries; the service binds both interfaces.
+    static_libs: [
+        "system_shizuku_aidl",
+        // Jetpack Security — EncryptedFile / MasterKey for grant store
+        "androidx.security_security-crypto",
+        // Jetpack Annotations used by Security library
+        "androidx.annotation_annotation",
+    ],
+    resource_dirs: ["service/res"],
+    manifest: "service/AndroidManifest.xml",
+
+    // Must be platform-signed to register privileged Binder services and to
+    // hold android.permission.MANAGE_SYSTEM_SHIZUKU.
+    certificate: "platform",
+
+    // Install to /system/priv-app/SystemShizuku
+    privileged: true,
+    platform_apis: true,
+
+    // SELinux label applied via service_contexts / file_contexts.
+    // See sepolicy/ directory for the policy files.
+}
+
+// ============================================================================
+// Permissions XML — installed to /system/etc/permissions
+// ============================================================================
+prebuilt_etc {
+    name: "com.android.systemshizuku.xml",
+    src: "permissions/com.android.systemshizuku.xml",
+    sub_dir: "permissions",
+}
+
+// Whitelisted priv-app permissions — installed to /system/etc/permissions
+prebuilt_etc {
+    name: "privapp-permissions-systemshizuku.xml",
+    src: "permissions/privapp-permissions-systemshizuku.xml",
+    sub_dir: "permissions",
+}
+
+// init.rc for the service startup
+prebuilt_etc {
+    name: "init.system_shizuku.rc",
+    src: "init.system_shizuku.rc",
+    sub_dir: "init",
+}

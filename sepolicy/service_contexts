@@ -1,0 +1,14 @@
+# service_contexts — SELinux labels for ServiceManager service names
+#
+# Copy these lines into your device's service_contexts file, for example:
+#   device/<vendor>/<device>/sepolicy/service_contexts
+# or:
+#   system/sepolicy/private/service_contexts
+#
+# Format: <service_name>  u:object_r:<type>:s0
+
+# Public app interface (ISystemShizukuService)
+system_shizuku                    u:object_r:system_shizuku_service:s0
+
+# System-only management interface (ISystemShizukuManager)
+system_shizuku_mgr                u:object_r:system_shizuku_mgr_service:s0

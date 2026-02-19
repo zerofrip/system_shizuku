@@ -1,0 +1,114 @@
+# SELinux policy for the system_shizuku service.
+#
+# Place this file in your device's sepolicy directory, for example:
+#   device/<vendor>/<device>/sepolicy/system_shizuku.te
+# or in the platform source at:
+#   system/sepolicy/private/system_shizuku.te
+#
+# You must also update:
+#   service_contexts       — maps the two ServiceManager names to type labels
+#   file_contexts          — maps the APK/data paths to file labels
+#   (see the companion files in this directory)
+
+# ============================================================================
+# Type declarations
+# ============================================================================
+
+# Process domain for the system_shizuku service process
+type system_shizuku, domain;
+type system_shizuku_exec, exec_type, file_type;
+
+# ServiceManager service labels
+type system_shizuku_service, service_manager_type;
+type system_shizuku_mgr_service, service_manager_type;
+
+# Data files under /data/system/system_shizuku/
+type system_shizuku_data_file, file_type, data_file_type;
+
+# ============================================================================
+# Domain transition
+# ============================================================================
+
+# Allow init to spawn system_shizuku from app_process
+init_daemon_domain(system_shizuku)
+
+# Transition from the system_server domain if launched as a child process
+# (remove this if the service is always started directly by init)
+# domain_auto_trans(system_server, system_shizuku_exec, system_shizuku)
+
+# ============================================================================
+# Service registration / lookup
+# ============================================================================
+
+# Allow system_shizuku to register its two Binder services
+allow system_shizuku system_shizuku_service:service_manager { add find };
+allow system_shizuku system_shizuku_mgr_service:service_manager { add find };
+
+# Allow the service to find itself (e.g. for health checks)
+allow system_shizuku system_shizuku_service:service_manager find;
+
+# Settings (and other privileged system apps) must find the manager service
+allow system_app system_shizuku_mgr_service:service_manager find;
+allow priv_app system_shizuku_mgr_service:service_manager find;
+
+# Any app can find the public service to resolve the Binder
+allow untrusted_app system_shizuku_service:service_manager find;
+allow untrusted_app_25 system_shizuku_service:service_manager find;
+allow isolated_app system_shizuku_service:service_manager find;
+
+# ============================================================================
+# File access
+# ============================================================================
+
+# Read/write the encrypted grant and audit store
+allow system_shizuku system_shizuku_data_file:dir  { create read write add_name remove_name search };
+allow system_shizuku system_shizuku_data_file:file { create read write open getattr setattr unlink };
+
+# Execute app_process to launch the service
+allow system_shizuku zygote_exec:file { execute };
+
+# ============================================================================
+# Binder IPC
+# ============================================================================
+
+# Allow Binder calls from apps to the public service
+binder_call(untrusted_app, system_shizuku)
+binder_call(priv_app, system_shizuku)
+binder_call(system_app, system_shizuku)
+
+# Allow Binder calls from Settings (system_app) to the manager service
+binder_call(system_app, system_shizuku)
+binder_call(priv_app, system_shizuku)
+
+# Allow system_shizuku to make Binder calls back to apps (e.g. callbacks)
+binder_call(system_shizuku, untrusted_app)
+binder_call(system_shizuku, priv_app)
+binder_call(system_shizuku, system_app)
+
+# ============================================================================
+# Android OS interactions
+# ============================================================================
+
+# Read installed packages (PackageManager)
+allow system_shizuku package_native_service:service_manager find;
+allow system_shizuku package_service:service_manager find;
+
+# Show overlay window (TYPE_APPLICATION_OVERLAY for consent dialog)
+allow system_shizuku system_server:binder { call transfer };
+
+# Send broadcasts
+allow system_shizuku system_server:binder call;
+
+# Android logging
+allow system_shizuku log_device:chr_file { read write open };
+
+# ============================================================================
+# Neverallow rules (document explicitly what is NOT permitted)
+# ============================================================================
+
+# system_shizuku must never run as root
+neverallow system_shizuku self:capability sys_admin;
+neverallow system_shizuku self:capability setuid;
+
+# system_shizuku must not access arbitrary files outside its data dir
+neverallow system_shizuku { exec_type -system_shizuku_exec }:file execute_no_trans;

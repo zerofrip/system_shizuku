@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Layout for PermissionConsentActivity.
+  This dialog is shown over other windows via TYPE_APPLICATION_OVERLAY.
+
+  Place in: service/res/layout/activity_permission_consent.xml
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <!-- Icon of the requesting app -->
+    <ImageView
+        android:id="@+id/img_app_icon"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:contentDescription="@string/consent_icon_desc"
+        android:layout_marginBottom="12dp" />
+
+    <!-- App label -->
+    <TextView
+        android:id="@+id/tv_app_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp" />
+
+    <!-- Package name (small, secondary) -->
+    <TextView
+        android:id="@+id/tv_package_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="?android:attr/textColorSecondary"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Request description -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/consent_description"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btn_deny"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="@string/consent_deny"
+            style="?android:attr/borderlessButtonStyle" />
+
+        <Button
+            android:id="@+id/btn_allow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/consent_allow" />
+
+    </LinearLayout>
+
+</LinearLayout>
