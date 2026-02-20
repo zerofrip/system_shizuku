@@ -69,11 +69,13 @@ allow system_shizuku zygote_exec:file { execute getattr open read };
 
 # Allow executing shell and system binaries (required for newProcess)
 allow system_shizuku shell_exec:file rx_file_perms;
-allow system_shizuku system_file:file rx_file_perms;
 allow system_shizuku toolbox_exec:file rx_file_perms;
 
 # Required for process management
 allow system_shizuku self:process { fork sigchld sigkill signal };
+
+# Allow apps to use FDs passed from system_shizuku (for IRemoteProcess streams)
+allow { untrusted_app priv_app system_app } system_shizuku:fd use;
 
 # ============================================================================
 # Binder IPC
@@ -108,7 +110,8 @@ allow system_shizuku system_server:binder { call transfer };
 allow system_shizuku system_server:binder call;
 
 # Android logging
-allow system_shizuku log_device:chr_file { read write open };
+read_logd(system_shizuku)
+control_logd(system_shizuku)
 
 # ============================================================================
 # Neverallow rules (document explicitly what is NOT permitted)
