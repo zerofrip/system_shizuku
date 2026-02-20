@@ -121,5 +121,5 @@ control_logd(system_shizuku)
 neverallow system_shizuku self:capability { sys_admin setuid setgid chown fowner };
 
 # system_shizuku must not access arbitrary files outside its data dir and system binaries
-neverallow system_shizuku { exec_type -system_shizuku_exec -shell_exec -toolbox_exec -zygote_exec -system_file }:file execute_no_trans;
+neverallow system_shizuku { exec_type -system_shizuku_exec -shell_exec -toolbox_exec -zygote_exec }:file execute_no_trans;
 neverallow system_shizuku { data_file_type -system_shizuku_data_file }:file { create write };
