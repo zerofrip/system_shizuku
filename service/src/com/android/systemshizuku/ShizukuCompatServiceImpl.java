@@ -10,12 +10,17 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
+import android.util.Slog;
 
 import moe.shizuku.server.IRemoteProcess;
 import moe.shizuku.server.IShizukuService;
 import com.android.systemshizuku.store.PermissionStore;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Compatibility implementation of moe.shizuku.server.IShizukuService.
@@ -24,9 +29,18 @@ import java.io.IOException;
 public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
 
     private static final String TAG = "ShizukuCompat";
+
+    // Production Constants
+    private static final int MAX_GLOBAL_PROCESSES = 64;
+    private static final int MAX_PER_UID_PROCESSES = 8;
+
     private final Context mContext;
     private final SystemShizukuServiceImpl mInternalService;
     private final PermissionStore mStore;
+
+    // Process tracking
+    private final AtomicInteger mGlobalProcessCount = new AtomicInteger(0);
+    private final Map<Integer, AtomicInteger> mUidProcessCounts = new ConcurrentHashMap<>();
 
     public ShizukuCompatServiceImpl(Context context, SystemShizukuServiceImpl internalService) {
         mContext = context;
@@ -36,7 +50,7 @@ public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
 
     @Override
     public int getVersion() {
-        return 13; // Return 13 to indicate modern Shizuku support
+        return 13;
     }
 
     @Override
@@ -51,14 +65,47 @@ public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
 
     @Override
     public IRemoteProcess newProcess(String[] cmd, String[] env, String dir) {
+        final int callingUid = Binder.getCallingUid();
+        final int userId = UserHandle.getUserId(callingUid);
+        final String packageName = getPackageNameForUid(callingUid);
+
         if (!checkSelfPermission()) {
-            throw new SecurityException("Shizuku permission not granted");
+            throw new SecurityException("Shizuku permission not granted for " + packageName);
         }
+
+        // Enforce process limits
+        if (mGlobalProcessCount.get() >= MAX_GLOBAL_PROCESSES) {
+            throw new SecurityException("Global process limit reached (" + MAX_GLOBAL_PROCESSES + ")");
+        }
+
+        AtomicInteger uidCounter = mUidProcessCounts.computeIfAbsent(callingUid, k -> new AtomicInteger(0));
+        if (uidCounter.get() >= MAX_PER_UID_PROCESSES) {
+            throw new SecurityException("Per-UID process limit reached (" + MAX_PER_UID_PROCESSES + ")");
+        }
+
+        // Audit Logging
+        Slog.i(TAG, "newProcess: cmd=" + Arrays.toString(cmd) + " uid=" + callingUid + " pkg=" + packageName);
+
         try {
-            // Execution as system user
+            mGlobalProcessCount.incrementAndGet();
+            uidCounter.incrementAndGet();
+
+            // Use the caller's binder to register death recipient in RemoteProcessImpl
+            IBinder clientBinder = Binder.getCallingBinder();
+
             Process p = Runtime.getRuntime().exec(cmd, env, dir != null ? new java.io.File(dir) : null);
-            return new RemoteProcessImpl(p);
+
+            return new RemoteProcessImpl(p, clientBinder) {
+                @Override
+                public void destroy() {
+                    super.destroy();
+                    mGlobalProcessCount.decrementAndGet();
+                    uidCounter.decrementAndGet();
+                }
+            };
         } catch (IOException e) {
+            mGlobalProcessCount.decrementAndGet();
+            uidCounter.decrementAndGet();
             Log.e(TAG, "newProcess failed", e);
             return null;
         }
@@ -76,15 +123,14 @@ public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
 
     @Override
     public void setSystemProperty(String name, String value) {
-        // Only allow if granted
         if (checkSelfPermission()) {
+            Slog.w(TAG, "setSystemProperty: name=" + name + " uid=" + Binder.getCallingUid());
             android.os.SystemProperties.set(name, value);
         }
     }
 
     @Override
     public int addUserService(IBinder conn, Bundle args) {
-        // UserService not implemented in this system shim
         return -1;
     }
 
@@ -135,7 +181,7 @@ public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
 
     @Override
     public void attachApplication(IBinder application, Bundle args) {
-        // No-op for system shim
+        // Shizuku-API calls this but it's not strictly required for our simple shim
     }
 
     @Override

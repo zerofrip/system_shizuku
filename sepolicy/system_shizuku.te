@@ -65,7 +65,15 @@ allow system_shizuku system_shizuku_data_file:dir  { create read write add_name 
 allow system_shizuku system_shizuku_data_file:file { create read write open getattr setattr unlink };
 
 # Execute app_process to launch the service
-allow system_shizuku zygote_exec:file { execute };
+allow system_shizuku zygote_exec:file { execute getattr open read };
+
+# Allow executing shell and system binaries (required for newProcess)
+allow system_shizuku shell_exec:file rx_file_perms;
+allow system_shizuku system_file:file rx_file_perms;
+allow system_shizuku toolbox_exec:file rx_file_perms;
+
+# Required for process management
+allow system_shizuku self:process { fork sigchld sigkill signal };
 
 # ============================================================================
 # Binder IPC
@@ -107,8 +115,8 @@ allow system_shizuku log_device:chr_file { read write open };
 # ============================================================================
 
 # system_shizuku must never run as root
-neverallow system_shizuku self:capability sys_admin;
-neverallow system_shizuku self:capability setuid;
+neverallow system_shizuku self:capability { sys_admin setuid setgid chown fowner };
 
-# system_shizuku must not access arbitrary files outside its data dir
-neverallow system_shizuku { exec_type -system_shizuku_exec }:file execute_no_trans;
+# system_shizuku must not access arbitrary files outside its data dir and system binaries
+neverallow system_shizuku { exec_type -system_shizuku_exec -shell_exec -toolbox_exec -zygote_exec -system_file }:file execute_no_trans;
+neverallow system_shizuku { data_file_type -system_shizuku_data_file }:file { create write };
