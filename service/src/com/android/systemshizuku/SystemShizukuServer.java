@@ -48,6 +48,7 @@ public class SystemShizukuServer {
     private static final String TAG = "SystemShizuku";
 
     public static final String SERVICE_NAME = "shizuku";
+    public static final String INTERNAL_SERVICE_NAME = "system_shizuku";
     public static final String MGR_SERVICE_NAME = "shizuku_mgr";
 
     public static void main(String[] args) {
@@ -70,18 +71,31 @@ public class SystemShizukuServer {
         // Instantiate service implementations
         // ------------------------------------------------------------------
         SystemShizukuServiceImpl serviceImpl = new SystemShizukuServiceImpl(context);
+        ShizukuCompatServiceImpl compatImpl = new ShizukuCompatServiceImpl(context, serviceImpl);
         SystemShizukuManagerImpl managerImpl = new SystemShizukuManagerImpl(context, store);
 
         // ------------------------------------------------------------------
         // Register with ServiceManager
         // ------------------------------------------------------------------
         try {
-            ServiceManager.addService(SERVICE_NAME, serviceImpl,
+            // Register compatibility service as "shizuku" for existing apps
+            ServiceManager.addService(SERVICE_NAME, compatImpl,
                     /* allowIsolated= */ false,
                     ServiceManager.DUMP_FLAG_PRIORITY_DEFAULT);
-            Log.i(TAG, "Registered: " + SERVICE_NAME);
+            Log.i(TAG, "Registered: " + SERVICE_NAME + " (Compat)");
         } catch (Exception e) {
             Log.wtf(TAG, "Failed to register " + SERVICE_NAME, e);
+            System.exit(1);
+        }
+
+        try {
+            // Register internal service as "system_shizuku"
+            ServiceManager.addService(INTERNAL_SERVICE_NAME, serviceImpl,
+                    /* allowIsolated= */ false,
+                    ServiceManager.DUMP_FLAG_PRIORITY_DEFAULT);
+            Log.i(TAG, "Registered: " + INTERNAL_SERVICE_NAME);
+        } catch (Exception e) {
+            Log.wtf(TAG, "Failed to register " + INTERNAL_SERVICE_NAME, e);
             System.exit(1);
         }
 

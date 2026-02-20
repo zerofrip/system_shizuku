@@ -7,8 +7,9 @@
 #
 # Format: <service_name>  u:object_r:<type>:s0
 
-# Public app interface (ISystemShizukuService)
+# Public app interfaces
 shizuku                            u:object_r:system_shizuku_service:s0
+system_shizuku                     u:object_r:system_shizuku_service:s0
 
 # System-only management interface (ISystemShizukuManager)
 shizuku_mgr                        u:object_r:system_shizuku_mgr_service:s0
