@@ -1,0 +1,3 @@
+[submodule "external/Shizuku-API"]
+	path = external/Shizuku-API
+	url = https://github.com/zerofrip/Shizuku-API
