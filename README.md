@@ -14,117 +14,92 @@ system_shizuku/
 ├── Android.bp                          # Soong build rules
 ├── init.system_shizuku.rc              # init.rc service definition
 │
-├── aidl/
-│   └── com/android/systemshizuku/
-│       ├── ShizukuPermission.aidl      # Grant-record parcelable
-│       ├── ShizukuAuditEvent.aidl      # Audit-log entry parcelable
-│       ├── ISystemShizukuCallback.aidl # One-shot grant/deny callback
-│       ├── ISystemShizukuService.aidl  # Public app interface
-│       └── ISystemShizukuManager.aidl  # System-only management interface
+├── aidl/moe/shizuku/server/
+│   ├── IShizukuService.aidl            # Compatibility interface (v13)
+│   └── IRemoteProcess.aidl             # Process streams/lifecycle interface
 │
-├── permissions/
-│   ├── com.android.systemshizuku.xml              # Platform permission declaration
-│   └── privapp-permissions-systemshizuku.xml      # Priv-app permission whitelist
+├── external/Shizuku-API/               # Git submodule for client-side library
+│
+├── sepolicy/
+│   ├── system_shizuku.te               # Hardened SELinux domain
+│   ├── service_contexts                # Service labels ("shizuku")
+│   └── file_contexts                   # File labels
 │
 ├── service/
-│   ├── AndroidManifest.xml
-│   └── src/com/android/systemshizuku/
-│       ├── SystemShizukuServer.java        # Process entrypoint (main())
-│       ├── SystemShizukuServiceImpl.java   # ISystemShizukuService impl stub
-│       └── SystemShizukuManagerImpl.java   # ISystemShizukuManager impl stub
+│   ├── src/com/android/systemshizuku/
+│   │   ├── SystemShizukuServer.java    # Entrypoint
+│   │   ├── ShizukuCompatServiceImpl.java # compatibility layer
+│   │   ├── RemoteProcessImpl.java      # Process binder implementation
+│   │   └── SystemShizukuServiceImpl.java # Internal logic
 │
-└── settings-integration/
-    └── SystemShizukuController.java       # Settings Special App Access controller
+└── settings-integration/               # Settings app Special Access components
 ```
 
 ---
 
-## Architecture
+## Features
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  App Process                                                 │
-│  ServiceManager.getService("shizuku")                        │
-│  → ISystemShizukuService (public)                            │
-│    requestPermission()  getMyPermission()  attachSession()   │
-└───────────────────────────────┬──────────────────────────────┘
-                                │ Binder IPC
-                                ▼
-┌──────────────────────────────────────────────────────────────┐
-│  system_shizuku process (uid=system)                         │
-│                                                              │
-│  SystemShizukuServiceImpl  ──call──▶  PermissionConsentActivity│
-│  SystemShizukuManagerImpl                                    │
-│                                                              │
-│  ServiceManager.getService("shizuku_mgr")                    │
-└───────────────────────────────┬──────────────────────────────┘
-                                │ Binder IPC
-                                ▼
-┌──────────────────────────────────────────────────────────────┐
-│  Settings Process (priv-app, holds MANAGE_SYSTEM_SHIZUKU)    │
-│  ISystemShizukuManager (read-only + revoke — no grant)       │
-│  → SystemShizukuController → list / revoke UI                │
-└──────────────────────────────────────────────────────────────┘
-```
+### 1. Shizuku Compatibility Layer
+- **Interface**: Implements `moe.shizuku.server.IShizukuService` exactly as the official Shizuku app.
+- **Binder Name**: Registered as `"shizuku"` in `ServiceManager`.
+- **Version**: Returns protocol version `13` (Modern Shizuku support).
+
+### 2. Full Process Execution (`newProcess`)
+- Executes shell commands as the `system` user (UID 1000).
+- **Binary Compatibility**: Apps like SAI, LSPosed, and Swift Backup can use `newProcess()` to execute commands.
+- **IRemoteProcess**: Transparent stream access via `ParcelFileDescriptor` for `stdin`, `stdout`, and `stderr`.
+
+### 3. Production Hardening
+- **Client-Death Cleanup**: Uses `DeathRecipient` to automatically kill child processes if the client app dies.
+- **Resource Limits**: Enforces global (64) and per-UID (8) concurrent process limits.
+- **Hardened I/O**: Multi-stage `FileDescriptor` extraction (Direct -> Reflected -> Field).
+- **Security Auditing**: Structured `Slog` logging of all executed commands (cmd, UID, pkg).
+
+### 4. SELinux Security
+- Runs in a dedicated `system_shizuku` domain.
+- **Enforcing Ready**: Includes `neverallow` rules to prevent privilege escalation or unauthorized file access.
+- **Modern Logging**: Uses `logd` macros instead of direct device access.
 
 ---
 
-## AIDL Design Summary
+## Build & Integration
 
-| Interface | Registered name | Callers | Capabilities |
-|---|---|---|---|
-| `ISystemShizukuService` | `shizuku` | Any installed app | Request permission, self-query, session attach |
-| `ISystemShizukuManager` | `shizuku_mgr` | `MANAGE_SYSTEM_SHIZUKU` holders only | List, query, revoke, audit log |
+### 1. AOSP Tree Placement
+Place this repository at `packages/apps/SystemShizuku/`.
 
-**Key design decisions:**
-
-- **No grant API in Settings** — permission granting is exclusively via the service's system dialog.
-- **Split interfaces** — strong trust-domain separation between the app-facing and management APIs.
-- **Session tokens** — the callback delivers an `IBinder` the service holds a `DeathRecipient` on; `GRANT_SESSION_ONLY` grants auto-revoke when the app process dies.
-- **userId everywhere** — `appId` (uid without userId) is stored separately from `userId` so records survive user re-creation.
-- **Versioned parcelables** — `ShizukuPermission.version` allows fields to be added without breaking old clients.
-
----
-
-## Build Integration
-
-1. Place this directory at `packages/apps/SystemShizuku/` in your AOSP tree.
-2. Add to your device's `PRODUCT_PACKAGES` in `device.mk`:
-   ```makefile
-   PRODUCT_PACKAGES += \
-       SystemShizuku \
-       com.android.systemshizuku.xml \
-       privapp-permissions-systemshizuku.xml \
-       init.system_shizuku.rc
-   ```
-3. Add to your Settings app's build dependencies:
-   ```
-   static_libs: ["system_shizuku_aidl"]
-   ```
-4. Add SELinux policy entries (see `sepolicy/` — to be added).
-
----
-
-## Settings Integration
-
-Wire the preference in Settings' `special_access.xml`:
-
-```xml
-<Preference
-    android:key="system_shizuku"
-    android:title="@string/system_shizuku_title"
-    android:fragment="com.android.settings.applications.specialaccess.systemshizuku.SystemShizukuListFragment" />
+### 2. Device Configuration
+Add the following to your `device.mk`:
+```makefile
+PRODUCT_PACKAGES += \
+    SystemShizuku \
+    com.android.systemshizuku.xml \
+    privapp-permissions-systemshizuku.xml \
+    init.system_shizuku.rc
 ```
 
-`SystemShizukuController` (in `settings-integration/`) handles all data
-loading and revocation. Add it to the Settings module build.
+### 3. Submodule Sync
+Ensure the Shizuku-API submodule is initialized:
+```bash
+git submodule update --init --recursive
+```
 
 ---
 
-## Security Notes
+## Client Connection (Shizuku-API)
 
-- `MANAGE_SYSTEM_SHIZUKU` is `signature|privileged` — only platform-signed or
-  explicitly whitelisted priv-apps can hold it.
-- The service enforces `Binder.getCallingUid()` on every API call.
-- Rate limiting on `requestPermission` prevents dialog-spam attacks.
-- Permanent deny (REVOKED_BY_USER) blocks future dialogs without removing the record.
+The included `external/Shizuku-API` is patched for direct connection. Client apps can connect via `ServiceManager` without requiring ADB or a Background Provider:
+
+```java
+// Example for client apps built with this library
+if (Shizuku.pingService()) {
+    // Service found directly via ServiceManager
+}
+```
+
+---
+
+## Security Invariants
+
+- **User Consent**: permissions are only granted via the system-rendered `PermissionConsentActivity`.
+- **Signature Protection**: `MANAGE_SYSTEM_SHIZUKU` is restricted to platform-signed apps (Settings).
+- **UID Validation**: Every call is verified using `Binder.getCallingUid()`.
