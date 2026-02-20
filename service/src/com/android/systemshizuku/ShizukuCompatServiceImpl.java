@@ -1,21 +1,24 @@
 package com.android.systemshizuku;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
 
-import rikka.shizuku.server.IShizukuService;
+import moe.shizuku.server.IRemoteProcess;
+import moe.shizuku.server.IShizukuService;
 import com.android.systemshizuku.store.PermissionStore;
 
 import java.io.IOException;
 
 /**
- * Compatibility implementation of rikka.shizuku.server.IShizukuService.
+ * Compatibility implementation of moe.shizuku.server.IShizukuService.
  * This is the object registered as "shizuku" in ServiceManager.
  */
 public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
@@ -33,29 +36,61 @@ public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
 
     @Override
     public int getVersion() {
-        // Return >= 11 for modern Shizuku-API compatibility
-        return 11;
+        return 13; // Return 13 to indicate modern Shizuku support
     }
 
     @Override
     public int getUid() {
-        // We are running as system (1000)
         return Process.SYSTEM_UID;
     }
 
     @Override
-    public int checkSelfPermission(String permission) {
-        int callingUid = Binder.getCallingUid();
-        int userId = UserHandle.getUserId(callingUid);
-        String packageName = getPackageNameForUid(callingUid);
+    public int checkPermission(String permission) {
+        return checkSelfPermission() ? PackageManager.PERMISSION_GRANTED : PackageManager.PERMISSION_DENIED;
+    }
 
-        if (packageName == null) return PackageManager.PERMISSION_DENIED;
-
-        ShizukuPermission grant = mStore.getGrant(packageName, userId);
-        if (grant != null && grant.granted) {
-            return PackageManager.PERMISSION_GRANTED;
+    @Override
+    public IRemoteProcess newProcess(String[] cmd, String[] env, String dir) {
+        if (!checkSelfPermission()) {
+            throw new SecurityException("Shizuku permission not granted");
         }
-        return PackageManager.PERMISSION_DENIED;
+        try {
+            // Execution as system user
+            Process p = Runtime.getRuntime().exec(cmd, env, dir != null ? new java.io.File(dir) : null);
+            return new RemoteProcessImpl(p);
+        } catch (IOException e) {
+            Log.e(TAG, "newProcess failed", e);
+            return null;
+        }
+    }
+
+    @Override
+    public String getSELinuxContext() {
+        return "u:r:system_shizuku:s0";
+    }
+
+    @Override
+    public String getSystemProperty(String name, String defaultValue) {
+        return android.os.SystemProperties.get(name, defaultValue);
+    }
+
+    @Override
+    public void setSystemProperty(String name, String value) {
+        // Only allow if granted
+        if (checkSelfPermission()) {
+            android.os.SystemProperties.set(name, value);
+        }
+    }
+
+    @Override
+    public int addUserService(IBinder conn, Bundle args) {
+        // UserService not implemented in this system shim
+        return -1;
+    }
+
+    @Override
+    public int removeUserService(IBinder conn, Bundle args) {
+        return -1;
     }
 
     @Override
@@ -64,17 +99,12 @@ public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
         int userId = UserHandle.getUserId(callingUid);
         String packageName = getPackageNameForUid(callingUid);
 
-        if (packageName == null) return;
+        if (packageName == null)
+            return;
 
-        // Delegate to existing internal request logic.
-        // For Shizuku-API compatibility, the user usually expects a broadcast 
-        // or a callback. Since we are integrated, we trigger our own dialog.
         mInternalService.requestPermission(packageName, userId, new ISystemShizukuCallback.Stub() {
             @Override
             public void onGranted(ShizukuPermission permission, IBinder sessionToken) {
-                // Shizuku apps often listen for Rikka-specific broadcasts 
-                // but since we are system_shizuku, we might need to send 
-                // the expected broadcast if apps rely on it.
                 Log.d(TAG, "Permission granted for " + packageName);
             }
 
@@ -86,27 +116,57 @@ public class ShizukuCompatServiceImpl extends IShizukuService.Stub {
     }
 
     @Override
-    public String getToken() {
-        // system_shizuku doesn't use tokens for standard calls, 
-        // it uses UID checking. Return a dummy or null.
-        return "system_integrated_shizuku";
+    public boolean checkSelfPermission() {
+        int callingUid = Binder.getCallingUid();
+        int userId = UserHandle.getUserId(callingUid);
+        String packageName = getPackageNameForUid(callingUid);
+
+        if (packageName == null)
+            return false;
+
+        ShizukuPermission grant = mStore.getGrant(packageName, userId);
+        return grant != null && grant.granted;
     }
 
     @Override
-    public void newProcess(String[] cmd, String[] env, String dir) {
-        // Check permission first
-        if (checkSelfPermission(null) != PackageManager.PERMISSION_GRANTED) {
-            throw new SecurityException("Shizuku permission not granted");
-        }
+    public boolean shouldShowRequestPermissionRationale() {
+        return false;
+    }
 
-        try {
-            // Execute as system UID
-            Runtime.getRuntime().exec(cmd, env, dir != null ? new java.io.File(dir) : null);
-            // Note: In a real implementation, you'd want to return a Process-like 
-            // object/interface so the caller can interact with it.
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to execute command", e);
-        }
+    @Override
+    public void attachApplication(IBinder application, Bundle args) {
+        // No-op for system shim
+    }
+
+    @Override
+    public void exit() {
+        // System service does not exit on command
+    }
+
+    @Override
+    public void attachUserService(IBinder binder, Bundle options) {
+    }
+
+    @Override
+    public void dispatchPackageChanged(Intent intent) {
+    }
+
+    @Override
+    public boolean isHidden(int uid) {
+        return false;
+    }
+
+    @Override
+    public void dispatchPermissionConfirmationResult(int requestUid, int requestPid, int requestCode, Bundle data) {
+    }
+
+    @Override
+    public int getFlagsForUid(int uid, int mask) {
+        return 0;
+    }
+
+    @Override
+    public void updateFlagsForUid(int uid, int mask, int value) {
     }
 
     private String getPackageNameForUid(int uid) {
