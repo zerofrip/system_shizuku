@@ -1,5 +1,9 @@
 # system_shizuku
 
+> [!NOTE]
+> **Verification Magisk Module Available**
+> For verification and testing of `system_shizuku` features on existing devices, the [**Sui-Lite**](https://github.com/zerofrip/Sui-Lite) Magisk module is available. It is intended for **verification and testing purposes only**, not for production use.
+
 > A **built-in, root-free, Shizuku-compatible system service** for custom ROMs.
 > Provides elevated IPC to authorised apps via a user-consent dialog — no ADB,
 > Magisk, or Zygisk required.
